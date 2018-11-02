@@ -15,7 +15,9 @@ Cam start_device(rs2::device device, int camSyncMode) {
 
     rs2::config config;
     config.enable_device(serial_number);
-    config.enable_stream(RS2_STREAM_INFRARED, 1, 848, 480, RS2_FORMAT_Y8, 90);
+    config.enable_stream(RS2_STREAM_INFRARED, 1, 640, 480, RS2_FORMAT_ANY, 30);
+    config.enable_stream(RS2_STREAM_DEPTH, -1, 640, 480, RS2_FORMAT_ANY, 30);
+    config.enable_stream(RS2_STREAM_COLOR, -1, 1920, 1080, RS2_FORMAT_ANY, 30);
 
     rs2::pipeline pipeline;
     rs2::pipeline_profile profile = pipeline.start(config);
