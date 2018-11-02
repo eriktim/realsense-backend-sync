@@ -1,0 +1,10 @@
+cmake_minimum_required (VERSION 3.1.0)
+project (backendSync)
+find_package (Threads REQUIRED)
+find_package (realsense2 REQUIRED)
+add_executable(backendSync main.cpp)
+target_link_libraries (backendSync ${CMAKE_THREAD_LIBS_INIT})
+include_directories(include ${realsense_INCLUDE_DIR})
+target_include_directories(backendSync PRIVATE ${realsense_INCLUDE_DIR})
+target_link_libraries(backendSync ${realsense2_LIBRARY})
+
