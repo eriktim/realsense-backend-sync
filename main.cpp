@@ -2,6 +2,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <future>
 
 typedef struct {
     std::string serial;
@@ -33,18 +34,29 @@ int main(int argc, char * argv[]) try
     std::vector<Cam> cams;
 
     for (auto&& device : ctx.query_devices()) {
-        cams.push_back(start_device(device));
+        auto cam = start_device(device);
+        cams.push_back(std::move(cam));
     }
 
     while (true) {
+        std::vector<std::future<void>> futures;
         for (auto it = cams.begin(); it != cams.end(); ++it) {
             auto cam = *it;
-            auto data = cam.pipeline.wait_for_frames();
-            auto backend = data.get_frame_metadata(RS2_FRAME_METADATA_BACKEND_TIMESTAMP);
-            auto counter = data.get_frame_metadata(RS2_FRAME_METADATA_FRAME_COUNTER);
-            std::cout << cam.serial << " " << counter << " " << backend << std::endl;
+            auto future = std::async(std::launch::async, [cam]() {
+                auto data = cam.pipeline.wait_for_frames();
+                auto backend = data.get_frame_metadata(RS2_FRAME_METADATA_BACKEND_TIMESTAMP);
+                auto counter = data.get_frame_metadata(RS2_FRAME_METADATA_FRAME_COUNTER);
+                std::stringstream str;
+                str << cam.serial << " " << counter << " " << backend << "\n";
+                std::cout << str.str();
+            });
+            futures.push_back(std::move(future));
         }
-    }
+        for (auto it = futures.begin(); it != futures.end(); ++it) {
+            (*it).wait();
+        }
+        std::cout << std::endl;
+   }
 
     return 0;
 }
