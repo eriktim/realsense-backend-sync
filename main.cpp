@@ -15,6 +15,8 @@ Cam start_device(rs2::device device, int camSyncMode) {
 
     rs2::config config;
     config.enable_device(serial_number);
+    //config.enable_stream(RS2_STREAM_INFRARED, 1, 848, 480, RS2_FORMAT_ANY, 90);
+    //config.enable_stream(RS2_STREAM_DEPTH, -1, 848, 480, RS2_FORMAT_ANY, 90);
     config.enable_stream(RS2_STREAM_INFRARED, 1, 640, 480, RS2_FORMAT_ANY, 30);
     config.enable_stream(RS2_STREAM_DEPTH, -1, 640, 480, RS2_FORMAT_ANY, 30);
     config.enable_stream(RS2_STREAM_COLOR, -1, 1920, 1080, RS2_FORMAT_ANY, 30);
@@ -25,6 +27,22 @@ Cam start_device(rs2::device device, int camSyncMode) {
 
     Cam cam = { serial_number, pipeline };
     return cam;
+}
+
+void grabFrames(Cam &cam) {
+    int lastCounter = -1;
+    for (int i = 0; i < 100; ) {
+        auto data = cam.pipeline.wait_for_frames();
+        auto backend = data.get_frame_metadata(RS2_FRAME_METADATA_BACKEND_TIMESTAMP);
+        auto counter = data.get_frame_metadata(RS2_FRAME_METADATA_FRAME_COUNTER);
+        if (counter > lastCounter) {
+            std::stringstream str;
+            str << cam.serial << "," << counter << "," << backend << "\n";
+            std::cout << str.str();
+            lastCounter = counter;
+            i++;
+        }
+    }
 }
 
 int main(int argc, char * argv[]) try
@@ -42,25 +60,17 @@ int main(int argc, char * argv[]) try
         camSyncMode = 2;
     }
 
-    while (true) {
-        std::vector<std::future<void>> futures;
-        for (auto it = cams.begin(); it != cams.end(); ++it) {
-            auto cam = *it;
-            auto future = std::async(std::launch::async, [cam]() {
-                auto data = cam.pipeline.wait_for_frames();
-                auto backend = data.get_frame_metadata(RS2_FRAME_METADATA_BACKEND_TIMESTAMP);
-                auto counter = data.get_frame_metadata(RS2_FRAME_METADATA_FRAME_COUNTER);
-                std::stringstream str;
-                str << cam.serial << " " << counter << " " << backend << "\n";
-                std::cout << str.str();
-            });
-            futures.push_back(std::move(future));
-        }
-        for (auto it = futures.begin(); it != futures.end(); ++it) {
-            (*it).wait();
-        }
-        std::cout << std::endl;
-   }
+    std::vector<std::thread> threads;
+
+    for (auto it = cams.begin(); it != cams.end(); ++it) {
+        auto cam = *it;
+        std::thread thread(&grabFrames, cam);
+        threads.push_back(std::move(thread));
+    }
+
+    for (auto it = threads.begin(); it != threads.end(); ++it) {
+        (*it).join();
+    }
 
     return 0;
 }
