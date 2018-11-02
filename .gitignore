@@ -9,3 +9,11 @@ compile_commands.json
 CTestTestfile.cmake
 backendSync
 *.swp
+*.sln
+*.vcxproj*
+x64
+x86
+*dir/
+Release
+Debug
+.vs
