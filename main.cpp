@@ -9,7 +9,7 @@ typedef struct {
     rs2::pipeline pipeline;
 } Cam;
 
-Cam start_device(rs2::device device) {
+Cam start_device(rs2::device device, int camSyncMode) {
     std::string serial_number(device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
     std::cout << "Found camera with serial " << serial_number << std::endl;
 
@@ -19,7 +19,7 @@ Cam start_device(rs2::device device) {
 
     rs2::pipeline pipeline;
     rs2::pipeline_profile profile = pipeline.start(config);
-    profile.get_device().first<rs2::depth_sensor>().set_option(RS2_OPTION_INTER_CAM_SYNC_MODE, 0);
+    profile.get_device().first<rs2::depth_sensor>().set_option(RS2_OPTION_INTER_CAM_SYNC_MODE, camSyncMode);
 
     Cam cam = { serial_number, pipeline };
     return cam;
@@ -32,10 +32,12 @@ int main(int argc, char * argv[]) try
     rs2::log_to_console(RS2_LOG_SEVERITY_ERROR);
     rs2::context ctx;
     std::vector<Cam> cams;
+    int camSyncMode = 1;
 
     for (auto&& device : ctx.query_devices()) {
-        auto cam = start_device(device);
+        auto cam = start_device(device, camSyncMode);
         cams.push_back(std::move(cam));
+        camSyncMode = 2;
     }
 
     while (true) {
