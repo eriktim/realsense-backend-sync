@@ -15,11 +15,11 @@ Cam start_device(rs2::device device, int camSyncMode) {
 
     rs2::config config;
     config.enable_device(serial_number);
-    //config.enable_stream(RS2_STREAM_INFRARED, 1, 848, 480, RS2_FORMAT_ANY, 90);
-    //config.enable_stream(RS2_STREAM_DEPTH, -1, 848, 480, RS2_FORMAT_ANY, 90);
-    config.enable_stream(RS2_STREAM_INFRARED, 1, 640, 480, RS2_FORMAT_ANY, 30);
-    config.enable_stream(RS2_STREAM_DEPTH, -1, 640, 480, RS2_FORMAT_ANY, 30);
-    config.enable_stream(RS2_STREAM_COLOR, -1, 1920, 1080, RS2_FORMAT_ANY, 30);
+    //config.enable_stream(RS2_STREAM_INFRARED, 1, 848, 480, RS2_FORMAT_Y8, 90);
+    //config.enable_stream(RS2_STREAM_DEPTH, 848, 480, RS2_FORMAT_Z16, 90);
+    config.enable_stream(RS2_STREAM_INFRARED, 1, 640, 480, RS2_FORMAT_Y8, 30);
+    config.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 30);
+    config.enable_stream(RS2_STREAM_COLOR, 1920, 1080, RS2_FORMAT_BGR8, 30);
 
     rs2::pipeline pipeline;
     rs2::pipeline_profile profile = pipeline.start(config);
@@ -29,19 +29,14 @@ Cam start_device(rs2::device device, int camSyncMode) {
     return cam;
 }
 
-void grabFrames(Cam &cam) {
-    int lastCounter = -1;
-    for (int i = 0; i < 100; ) {
+void grabFrames(Cam cam) {
+    for (int i = 0; i < 250; ++i) {
         auto data = cam.pipeline.wait_for_frames();
         auto backend = data.get_frame_metadata(RS2_FRAME_METADATA_BACKEND_TIMESTAMP);
         auto counter = data.get_frame_metadata(RS2_FRAME_METADATA_FRAME_COUNTER);
-        if (counter > lastCounter) {
-            std::stringstream str;
-            str << cam.serial << "," << counter << "," << backend << "\n";
-            std::cout << str.str();
-            lastCounter = counter;
-            i++;
-        }
+        std::stringstream str;
+        str << cam.serial << "," << counter << "," << backend << "\n";
+        std::cout << str.str();
     }
 }
 
@@ -64,7 +59,7 @@ int main(int argc, char * argv[]) try
 
     for (auto it = cams.begin(); it != cams.end(); ++it) {
         auto cam = *it;
-        std::thread thread(&grabFrames, cam);
+        std::thread thread(grabFrames, cam);
         threads.push_back(std::move(thread));
     }
 
