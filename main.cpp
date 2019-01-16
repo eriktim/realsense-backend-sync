@@ -13,13 +13,30 @@ Cam start_device(rs2::device device, int camSyncMode) {
     std::string serial_number(device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
     std::cout << "Found camera with serial " << serial_number << std::endl;
 
+	rs2::context ctx;
+	rs2::device newDevice;
+	for (auto&& device : ctx.query_devices()) {
+		if (serial_number.compare(device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER)) == 0) {
+			device.hardware_reset();
+			rs2::device_hub hub(ctx);
+			// to make sure resetted device is redetected again
+			newDevice = hub.wait_for_device();
+			// verify that the redetected device is indeed the device that has been resetted (it could be another connected device)
+			while (serial_number.compare(newDevice.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER)) != 0) {
+				newDevice = hub.wait_for_device(); // recurring calls to wait_for_device() wait for the next device (in case of multiple connected devices)
+			}
+		}
+	}
+
+    std::cout << "Start camera with serial " << serial_number << std::endl;
+
     rs2::config config;
     config.enable_device(serial_number);
-    //config.enable_stream(RS2_STREAM_INFRARED, 1, 848, 480, RS2_FORMAT_Y8, 90);
-    //config.enable_stream(RS2_STREAM_DEPTH, 848, 480, RS2_FORMAT_Z16, 90);
-    config.enable_stream(RS2_STREAM_INFRARED, 1, 640, 480, RS2_FORMAT_Y8, 30);
-    config.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 30);
-    config.enable_stream(RS2_STREAM_COLOR, 1920, 1080, RS2_FORMAT_BGR8, 30);
+    config.enable_stream(RS2_STREAM_INFRARED, 1, 848, 480, RS2_FORMAT_Y8, 90);
+    config.enable_stream(RS2_STREAM_DEPTH, 848, 480, RS2_FORMAT_Z16, 90);
+    //config.enable_stream(RS2_STREAM_INFRARED, 1, 640, 480, RS2_FORMAT_Y8, 30);
+    //config.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 30);
+    //config.enable_stream(RS2_STREAM_COLOR, 1920, 1080, RS2_FORMAT_BGR8, 30);
 
     rs2::pipeline pipeline;
     rs2::pipeline_profile profile = pipeline.start(config);
@@ -30,10 +47,11 @@ Cam start_device(rs2::device device, int camSyncMode) {
 }
 
 void grabFrames(Cam cam) {
+    std::cout << "Start thread"<< std::endl;
     for (int i = 0; i < 250; ++i) {
         auto data = cam.pipeline.wait_for_frames();
-        auto backend = data.get_frame_metadata(RS2_FRAME_METADATA_BACKEND_TIMESTAMP);
-        auto counter = data.get_frame_metadata(RS2_FRAME_METADATA_FRAME_COUNTER);
+		auto backend = data.get_frame_metadata(RS2_FRAME_METADATA_BACKEND_TIMESTAMP);
+		auto counter = data.get_frame_number();
         std::stringstream str;
         str << cam.serial << "," << counter << "," << backend << "\n";
         std::cout << str.str();
@@ -44,7 +62,7 @@ int main(int argc, char * argv[]) try
 {
     std::cout << "Start!" << std::endl;
 
-    rs2::log_to_console(RS2_LOG_SEVERITY_ERROR);
+    //rs2::log_to_console(RS2_LOG_SEVERITY_ERROR);
     rs2::context ctx;
     std::vector<Cam> cams;
     int camSyncMode = 1;
